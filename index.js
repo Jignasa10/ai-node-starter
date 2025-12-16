@@ -56,7 +56,7 @@ app.post("/ai/generate", async (req, res) => {
       result: response.choices[0].message.content,
     });
   } catch (error) {
-    console.error("AI ERROR:", error.response?.data || error.message);
+    console.error("AI ERROR :", error.response?.data || error.message);
 
     res.status(500).json({
       success: false,
