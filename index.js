@@ -1,58 +1,76 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
-import OpenAI from "openai";
-
-dotenv.config();
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const OLLAMA_URL = "http://localhost:11434/api/generate";
+const MODEL = "qwen2.5:1.5b";
 
-// 🔹 Chat API
-app.post("/ai/chat", async (req, res) => {
+/**
+ * STREAMING CHAT API
+ */
+app.post("/ai/ask", async (req, res) => {
   try {
-    const { messages } = req.body;
-
-    if (!messages || !Array.isArray(messages)) {
-      return res.status(400).json({ error: "Messages array required" });
+    const { message } = req.body;
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
     }
 
-    const chatMessages = [
-      {
-        role: "system",
-        content: "You are a helpful and professional business chatbot.",
-      },
-      ...messages,
-    ];
+    // Streaming headers
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: chatMessages,
-      max_tokens: 300,
-      temperature: 0.6,
+    const ollamaRes = await fetch(OLLAMA_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: MODEL,
+        prompt: message,
+        stream: true,
+
+        // 🔥 SPEED OPTIMIZATION
+        options: {
+          num_predict: 150,
+          num_ctx: 1024,
+          temperature: 0.7,
+          top_p: 0.9,
+        },
+      }),
     });
 
-    res.json({
-      success: true,
-      message: response.choices[0].message.content,
-    });
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ error: "Chatbot failed" });
+    const reader = ollamaRes.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split("\n").filter(Boolean);
+
+      for (const line of lines) {
+        try {
+          const json = JSON.parse(line);
+          if (json.response) {
+            res.write(json.response);
+          }
+        } catch {
+          // ignore partial chunks
+        }
+      }
+    }
+
+    res.end();
+  } catch (err) {
+    console.error("AI ERROR:", err);
+    res.status(500).end("AI failed");
   }
 });
 
-// Health check
-app.get("/", (req, res) => {
-  res.send("Chatbot API running 🚀");
-});
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+app.listen(5000, () => {
+  console.log("✅ Server running on port 5000");
 });
