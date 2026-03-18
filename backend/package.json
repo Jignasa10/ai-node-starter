@@ -15,14 +15,14 @@
     "nodemon": "^3.1.11"
   },
   "dependencies": {
-    "@langchain/community": "^1.1.0",
-    "@langchain/core": "^1.1.6",
-    "@langchain/openai": "^1.2.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^5.2.1",
+    "fs": "^0.0.1-security",
+    "mongoose": "^9.0.2",
     "multer": "^2.0.2",
+    "node-fetch": "^3.3.2",
     "openai": "^4.56.0",
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.4"
   }
 }
